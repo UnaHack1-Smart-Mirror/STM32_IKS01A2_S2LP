@@ -258,17 +258,16 @@ void main(void)
     /* go in low power with the STM32 waiting for an external interrupt */
     // PRINTF("\r\nTest.\n\r");
     
-    disableAllSensors();  
     HAL_PWR_EnterSTOPMode(PWR_LOWPOWERREGULATOR_ON,PWR_STOPENTRY_WFI);
     ST_LOWLEVEL_SetSysClock();
     exitGpioLowPower();
-    enableAllSensors();
     
 		while(1)
   {
+		disableAllSensors(); 
 		SdkDelayMs(10000);
 		PRINTF("-----------------------\r\n");
-	
+		enableAllSensors();
   
       //For X_NUCLEO_IKS01A2 ********
       /* Perform handlers */
