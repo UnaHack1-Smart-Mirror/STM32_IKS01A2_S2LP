@@ -9,7 +9,6 @@
 //********************************
 #include "main.h"		
 #include <string.h> /* strlen */
-//#include <stdio.h>  /* sprintf */
 #include <math.h>   /* trunc */
 
 #define USE_ENVI_SENSORS  //LPS22HB MEMS pressure sensor, absolute digital output barometer and HTS221 Capacitive digital relative humidity and temperature
@@ -34,9 +33,7 @@ static void initializeAllSensors( void );
 static void deinitializeAllSensors( void );
 static void enableAllSensors( void );
 static void disableAllSensors( void );
-#ifdef USE_ENVI_SENSORS
-static void floatToInt( float in, int32_t *out_int, int32_t *out_dec, int32_t dec_prec );
-#endif
+
 
 #ifdef USE_ACC_GYRO
 static void Accelero_Sensor_Handler( void *handle );
@@ -47,8 +44,8 @@ static void Accelero_Sensor_Handler( void *handle );
 static void Magneto_Sensor_Handler( void *handle );
 #endif
 #ifdef  USE_ENVI_SENSORS
-static float Humidity_Sensor_Handler( void *handle );
-static float Temperature_Sensor_Handler( void *handle );
+static int Humidity_Sensor_Handler( void *handle );
+static int Temperature_Sensor_Handler( void *handle );
 static void Pressure_Sensor_Handler( void *handle );
 #endif
 //***************************
@@ -76,14 +73,6 @@ void Appli_Exti_CB(uint16_t GPIO_Pin)
   {
     /* set the button pressed flag */
     but_pressed=1;
-		
-		/* Add more button press handling here if necessary by the user application */
-
-
-		
-		
-		/******************************************/
-		
   }
 }
 
@@ -141,10 +130,8 @@ void main(void)
   
   /* Some variables to store the application data to transmit */
   uint32_t cust_counter=0;
-	uint32_t customer_temp[12]={0};
   uint8_t customer_data[12]={0};
   uint8_t customer_resp[8];
-	char temp;
   
   /* Initialize the hardware */
   HAL_Init();
@@ -281,32 +268,10 @@ void main(void)
       Magneto_Sensor_Handler( LSM303AGR_M_0_handle );
 #endif
 #ifdef USE_ENVI_SENSORS
-      customer_temp[0] = Humidity_Sensor_Handler( HTS221_H_0_handle );
+      customer_data[0] = Humidity_Sensor_Handler( HTS221_H_0_handle );
+      customer_data[1] = Temperature_Sensor_Handler( HTS221_T_0_handle ) + 128;	
 			
-			customer_data[2] = '.';
-			int custom_flag = 4;
-			
-			while( customer_temp[0] > 0 ){
-				customer_data[custom_flag] = (char)(customer_temp[0]%10 + '0');
-				customer_temp[0] /= 10;
-				custom_flag--;
-				if( custom_flag == 2){custom_flag--;}
-			}
-			
-  		customer_data[5] = ',';
-			
-      customer_temp[1] = Temperature_Sensor_Handler( HTS221_T_0_handle );
-			customer_data[8] = '.';
-			custom_flag = 10;
-			
-			while( customer_temp[1] > 0 ){
-				customer_data[custom_flag] = (char)(customer_temp[1]%10 + '0');
-				customer_temp[1] /= 10;
-				custom_flag--;
-				if( custom_flag == 8){custom_flag--;}
-			}
-			
-		    ST_SIGFOX_API_send_frame(customer_data,11,customer_resp,0,0);
+		  ST_SIGFOX_API_send_frame(customer_data,2,customer_resp,0,0);
 
 
 #endif
@@ -333,30 +298,6 @@ void main(void)
   }
 	
 }
-#ifdef USE_ENVI_SENSORS
-/**
- * @brief  Splits a float into two integer values.
- * @param  in the float value as input
- * @param  out_int the pointer to the integer part as output
- * @param  out_dec the pointer to the decimal part as output
- * @param  dec_prec the decimal precision to be used
- * @retval None
- */
-static void floatToInt( float in, int32_t *out_int, int32_t *out_dec, int32_t dec_prec )
-{
-
-  *out_int = (int32_t)in;
-  if(in >= 0.0f)
-  {
-    in = in - (float)(*out_int);
-  }
-  else
-  {
-    in = (float)(*out_int) - in;
-  }
-  *out_dec = (int32_t)trunc(in * pow(10, dec_prec));
-}
-#endif
 
 #ifdef USE_ENVI_SENSORS
 /**
@@ -364,7 +305,7 @@ static void floatToInt( float in, int32_t *out_int, int32_t *out_dec, int32_t de
  * @param  handle the device handle
  * @retval None
  */
-static float Humidity_Sensor_Handler( void *handle )
+static int Humidity_Sensor_Handler( void *handle )
 {
 
   int32_t d1, d2;
@@ -383,32 +324,18 @@ static float Humidity_Sensor_Handler( void *handle )
       humidity = 0.0f;
     }
 		
-		/* Perform post processing of sensor data */
-		
-		
 #if 1
-		/* Print sensor data for debuging purposes */
-    floatToInt( humidity, &d1, &d2, 2 );
-//    sprintf( dataOut, "\r\nHUM[%d]: %d.%02d\r\n", (int)id, (int)d1, (int)d2 );
-//    HAL_UART_Transmit( &UartHandle, ( uint8_t * )dataOut, strlen( dataOut ), 5000 );
+
 		
-		PRINTF("\r\nHumidity: %d.%01d \r\n", (int)d1, (int)d2 );
-		
-		return (int)(humidity*100);
+		PRINTF("\r\nHumidity: %.2f \r\n", humidity );
+		return roundf(humidity);
 		
 #endif
 		
   }
 }
 
-
-
-/**
- * @brief  Handles the temperature data getting/sending
- * @param  handle the device handle
- * @retval None
- */
-static float Temperature_Sensor_Handler( void *handle )
+static int Temperature_Sensor_Handler( void *handle )
 {
 
   int32_t d1, d2;
@@ -426,26 +353,10 @@ static float Temperature_Sensor_Handler( void *handle )
     {
       temperature = 0.0f;
     }
-		
-		/* Perform post processing of sensor data */
-		
-		
-		
-		
-		
-		/* ************************************** */
-		
-		
-		
 #if 1
-		/* Print sensor data for debuging purposes */
-    floatToInt( temperature, &d1, &d2, 2 );
-//    sprintf( dataOut, "\r\nTEMP[%d]: %d.%02d\r\n", (int)id, (int)d1, (int)d2 );
-//    HAL_UART_Transmit( &UartHandle, ( uint8_t * )dataOut, strlen( dataOut ), 5000 );
-
-		PRINTF("\rTemperature: %d.%1d\r\n", (int)d1, (int)d2 );
+		PRINTF("\rTemperature: %.2f\r\n", temperature );
 		
-		return (int)(temperature*100);
+		return roundf(temperature);
 #endif
 		
   }
