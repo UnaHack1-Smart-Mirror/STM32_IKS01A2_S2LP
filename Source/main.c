@@ -284,26 +284,21 @@ void main(void)
 #endif
 #ifdef USE_ENVI_SENSORS
       customer_temp[0] = Humidity_Sensor_Handler( HTS221_H_0_handle );
-			PRINTF("Humidity = %f\r\n",customer_temp[0]);
       customer_data[0] = roundf(customer_temp[0]);
 
       customer_temp[1] = Temperature_Sensor_Handler( HTS221_T_0_handle );
-			PRINTF("Temp = %f\r\n",customer_temp[1]);
       customer_data[1] = roundf(customer_temp[1]) + 128;
-      
-			PRINTF("abs(customer_data[0] - pre_h) : %d\r\n",abs(customer_data[0] - pre_h));
-			PRINTF("abs(customer_data[1] - pre_t) : %d\r\n",abs(customer_data[1] - pre_t));
-			
-			if( abs(customer_data[0] - pre_h) >= 5 || abs(customer_data[1] - pre_t) >= 0.5 )
+		
+			if( abs(customer_data[0] - pre_h) >= 5 || abs(customer_data[1] - pre_t) >= 1 )
 			{
 				PRINTF("\r\nSending data.....\r\n");
 				ST_SIGFOX_API_send_frame(customer_data, 2,customer_resp, 0, 0);
 				PRINTF("Done!\r\n");
+				pre_h = customer_data[0];
+				pre_t = customer_data[1];
 			}
 			else{ PRINTF("\r\nTemperature and Humidity are stable.\r\n"); }
 			
-			pre_h = customer_data[0];
-			pre_t = customer_data[1];
 #endif
   
 #ifdef FOR_FCC
@@ -438,7 +433,7 @@ static float Temperature_Sensor_Handler( void *handle )
 //    sprintf( dataOut, "\r\nTEMP[%d]: %d.%02d\r\n", (int)id, (int)d1, (int)d2 );
 //    HAL_UART_Transmit( &UartHandle, ( uint8_t * )dataOut, strlen( dataOut ), 5000 );
 
-    PRINTF("Temperature: %d.%1d\r\n", (int)d1, (int)d2 );
+		PRINTF("Temperature: %d.%1d\r\n", (int)d1, (int)d2 );
     
     return temperature;
 #endif
