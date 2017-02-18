@@ -143,8 +143,11 @@ void main(void)
   /* Some variables to store the application data to transmit */
   uint32_t cust_counter=0;
 	float customer_temp[12]={0};
-  uint8_t customer_data[12]={0};
+  int pre_t = 0;
+	int pre_h = 0;
+	uint8_t customer_data[12]={0};
   uint8_t customer_resp[8];
+	
   
   /* Initialize the hardware */
   HAL_Init();
@@ -288,8 +291,19 @@ void main(void)
 			PRINTF("Temp = %f\r\n",customer_temp[1]);
       customer_data[1] = roundf(customer_temp[1]) + 128;
       
-      ST_SIGFOX_API_send_frame(customer_data, 2,customer_resp, 0, 0);
-
+			PRINTF("abs(customer_data[0] - pre_h) : %d\r\n",abs(customer_data[0] - pre_h));
+			PRINTF("abs(customer_data[1] - pre_t) : %d\r\n",abs(customer_data[1] - pre_t));
+			
+			if( abs(customer_data[0] - pre_h) >= 5 || abs(customer_data[1] - pre_t) >= 0.5 )
+			{
+				PRINTF("\r\nSending data.....\r\n");
+				ST_SIGFOX_API_send_frame(customer_data, 2,customer_resp, 0, 0);
+				PRINTF("Done!\r\n");
+			}
+			else{ PRINTF("\r\nTemperature and Humidity are stable.\r\n"); }
+			
+			pre_h = customer_data[0];
+			pre_t = customer_data[1];
 #endif
   
 #ifdef FOR_FCC
