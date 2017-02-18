@@ -1,0 +1,10 @@
+.\objects\lsm6dsl_acc_gyro_driver_hl.o: ..\..\..\..\Drivers\BSP\Components\lsm6dsl\LSM6DSL_ACC_GYRO_driver_HL.c
+.\objects\lsm6dsl_acc_gyro_driver_hl.o: ..\..\..\..\Drivers\BSP\Components\lsm6dsl\LSM6DSL_ACC_GYRO_driver_HL.h
+.\objects\lsm6dsl_acc_gyro_driver_hl.o: ..\..\..\..\Drivers\BSP\Components\Common\accelerometer.h
+.\objects\lsm6dsl_acc_gyro_driver_hl.o: ..\..\..\..\Drivers\BSP\Components\Common\sensor.h
+.\objects\lsm6dsl_acc_gyro_driver_hl.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\string.h
+.\objects\lsm6dsl_acc_gyro_driver_hl.o: ..\..\..\..\Drivers\BSP\Components\Common\component.h
+.\objects\lsm6dsl_acc_gyro_driver_hl.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\stdint.h
+.\objects\lsm6dsl_acc_gyro_driver_hl.o: ..\..\..\..\Drivers\BSP\Components\Common\gyroscope.h
+.\objects\lsm6dsl_acc_gyro_driver_hl.o: ..\..\..\..\Drivers\BSP\Components\lsm6dsl\LSM6DSL_ACC_GYRO_driver.h
+.\objects\lsm6dsl_acc_gyro_driver_hl.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\math.h

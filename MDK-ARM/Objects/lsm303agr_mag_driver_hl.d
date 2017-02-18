@@ -1,0 +1,9 @@
+.\objects\lsm303agr_mag_driver_hl.o: ..\..\..\..\Drivers\BSP\Components\lsm303agr\LSM303AGR_MAG_driver_HL.c
+.\objects\lsm303agr_mag_driver_hl.o: ..\..\..\..\Drivers\BSP\Components\lsm303agr\LSM303AGR_MAG_driver_HL.h
+.\objects\lsm303agr_mag_driver_hl.o: ..\..\..\..\Drivers\BSP\Components\Common\magnetometer.h
+.\objects\lsm303agr_mag_driver_hl.o: ..\..\..\..\Drivers\BSP\Components\Common\sensor.h
+.\objects\lsm303agr_mag_driver_hl.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\string.h
+.\objects\lsm303agr_mag_driver_hl.o: ..\..\..\..\Drivers\BSP\Components\Common\component.h
+.\objects\lsm303agr_mag_driver_hl.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\stdint.h
+.\objects\lsm303agr_mag_driver_hl.o: ..\..\..\..\Drivers\BSP\Components\lsm303agr\LSM303AGR_MAG_driver.h
+.\objects\lsm303agr_mag_driver_hl.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\math.h
