@@ -7,9 +7,11 @@
 #include "MCU_Interface.h"
 
 //********************************
-#include "main.h"		
+#include "main.h"   
 #include <string.h> /* strlen */
+//#include <stdio.h>  /* sprintf */
 #include <math.h>   /* trunc */
+
 
 #define USE_ENVI_SENSORS  //LPS22HB MEMS pressure sensor, absolute digital output barometer and HTS221 Capacitive digital relative humidity and temperature
 
@@ -33,7 +35,9 @@ static void initializeAllSensors( void );
 static void deinitializeAllSensors( void );
 static void enableAllSensors( void );
 static void disableAllSensors( void );
-
+#ifdef USE_ENVI_SENSORS
+static void floatToInt( float in, int32_t *out_int, int32_t *out_dec, int32_t dec_prec );
+#endif
 
 #ifdef USE_ACC_GYRO
 static void Accelero_Sensor_Handler( void *handle );
@@ -44,8 +48,8 @@ static void Accelero_Sensor_Handler( void *handle );
 static void Magneto_Sensor_Handler( void *handle );
 #endif
 #ifdef  USE_ENVI_SENSORS
-static int Humidity_Sensor_Handler( void *handle );
-static int Temperature_Sensor_Handler( void *handle );
+static float Humidity_Sensor_Handler( void *handle );
+static float Temperature_Sensor_Handler( void *handle );
 static void Pressure_Sensor_Handler( void *handle );
 #endif
 //***************************
@@ -73,6 +77,14 @@ void Appli_Exti_CB(uint16_t GPIO_Pin)
   {
     /* set the button pressed flag */
     but_pressed=1;
+    
+    /* Add more button press handling here if necessary by the user application */
+
+
+    
+    
+    /******************************************/
+    
   }
 }
 
@@ -94,7 +106,7 @@ void enterGpioLowPower(void)
   HAL_GPIO_Init(GPIOC, &GPIO_InitStructure);
   
   GPIO_InitStructure.Pin = GPIO_PIN_All & (~GPIO_PIN_13) & (~GPIO_PIN_14) 
-														& (~GPIO_PIN_5) & (~GPIO_PIN_2) & (~GPIO_PIN_3);//SWD, LED, UART
+                            & (~GPIO_PIN_5) & (~GPIO_PIN_2) & (~GPIO_PIN_3);//SWD, LED, UART
   HAL_GPIO_Init(GPIOA, &GPIO_InitStructure);
 
   GPIO_InitStructure.Pin = GPIO_PIN_All  & (~GPIO_PIN_8) & (~GPIO_PIN_9); //I2C1 pins
@@ -130,6 +142,7 @@ void main(void)
   
   /* Some variables to store the application data to transmit */
   uint32_t cust_counter=0;
+	float customer_temp[12]={0};
   uint8_t customer_data[12]={0};
   uint8_t customer_resp[8];
   
@@ -140,13 +153,13 @@ void main(void)
   SdkEvalM2SGpioInit(M2S_GPIO_SDN,M2S_MODE_GPIO_OUT);
   SdkEvalSpiInit();
   EepromSpiInitialization();
-	
-	//For X_NUCLEO_IKS01A2 ********
-  USARTConfig();	/* Initialize UART */
-	initializeAllSensors();	/* Initialize sensors */
-	enableAllSensors();
-	//****************************  
-	
+  
+  //For X_NUCLEO_IKS01A2 ********
+  USARTConfig();  /* Initialize UART */
+  initializeAllSensors(); /* Initialize sensors */
+  enableAllSensors();
+  //****************************  
+  
   /* Identify the RF board reading some production data */
   S2LPManagementIdentificationRFBoard();
   
@@ -169,10 +182,10 @@ void main(void)
   
   /* If the retriever returned an error (code different from RETR_OK) the application must not continue */
   if(retr_err!=RETR_OK){
-	 /* Print error message */
-		PRINTF("Board not ready for SigFox. Missing board ID/PAC.\n\r");
-		PRINTF("Please register the board with ST to obtain the ID/PAC.\n\r");
-		Fatal_Error();
+   /* Print error message */
+    PRINTF("Board not ready for SigFox. Missing board ID/PAC.\n\r");
+    PRINTF("Please register the board with ST to obtain the ID/PAC.\n\r");
+    Fatal_Error();
   }
   
   /* Here it is necessary to understand if we are using the code for ETSI or FCC */
@@ -242,22 +255,22 @@ void main(void)
 #endif
 
   /* application main loop */
-  while(1)
-  {  
     /* go in low power with the STM32 waiting for an external interrupt */
-		// PRINTF("\r\nTest.\n\r");
-		
-		disableAllSensors();	
+    // PRINTF("\r\nTest.\n\r");
+    
+    disableAllSensors();  
     HAL_PWR_EnterSTOPMode(PWR_LOWPOWERREGULATOR_ON,PWR_STOPENTRY_WFI);
     ST_LOWLEVEL_SetSysClock();
     exitGpioLowPower();
-		enableAllSensors();
-		
-      
-    if(but_pressed)
-    {
+    enableAllSensors();
+    
+		while(1)
+  {
+		SdkDelayMs(10000);
+		PRINTF("-----------------------\r\n");
 	
-			//For X_NUCLEO_IKS01A2 ********
+  
+      //For X_NUCLEO_IKS01A2 ********
       /* Perform handlers */
 #ifdef USE_ACC_GYRO
       Accelero_Sensor_Handler( LSM6DSL_X_0_handle );
@@ -268,11 +281,15 @@ void main(void)
       Magneto_Sensor_Handler( LSM303AGR_M_0_handle );
 #endif
 #ifdef USE_ENVI_SENSORS
-      customer_data[0] = Humidity_Sensor_Handler( HTS221_H_0_handle );
-      customer_data[1] = Temperature_Sensor_Handler( HTS221_T_0_handle ) + 128;	
-			
-		  ST_SIGFOX_API_send_frame(customer_data,2,customer_resp,0,0);
+      customer_temp[0] = Humidity_Sensor_Handler( HTS221_H_0_handle );
+			PRINTF("Humidity = %f\r\n",customer_temp[0]);
+      customer_data[0] = roundf(customer_temp[0]);
 
+      customer_temp[1] = Temperature_Sensor_Handler( HTS221_T_0_handle );
+			PRINTF("Temp = %f\r\n",customer_temp[1]);
+      customer_data[1] = roundf(customer_temp[1]) + 128;
+      
+      ST_SIGFOX_API_send_frame(customer_data, 2,customer_resp, 0, 0);
 
 #endif
   
@@ -292,12 +309,36 @@ void main(void)
       }
 #endif
   
-      but_pressed=0;
+      
 
-    }
+    
   }
-	
+  
 }
+#ifdef USE_ENVI_SENSORS
+/**
+ * @brief  Splits a float into two integer values.
+ * @param  in the float value as input
+ * @param  out_int the pointer to the integer part as output
+ * @param  out_dec the pointer to the decimal part as output
+ * @param  dec_prec the decimal precision to be used
+ * @retval None
+ */
+static void floatToInt( float in, int32_t *out_int, int32_t *out_dec, int32_t dec_prec )
+{
+
+  *out_int = (int32_t)in;
+  if(in >= 0.0f)
+  {
+    in = in - (float)(*out_int);
+  }
+  else
+  {
+    in = (float)(*out_int) - in;
+  }
+  *out_dec = (int32_t)trunc(in * pow(10, dec_prec));
+}
+#endif
 
 #ifdef USE_ENVI_SENSORS
 /**
@@ -305,7 +346,7 @@ void main(void)
  * @param  handle the device handle
  * @retval None
  */
-static int Humidity_Sensor_Handler( void *handle )
+static float Humidity_Sensor_Handler( void *handle )
 {
 
   int32_t d1, d2;
@@ -323,19 +364,33 @@ static int Humidity_Sensor_Handler( void *handle )
     {
       humidity = 0.0f;
     }
-		
+    
+    /* Perform post processing of sensor data */
+    
+    
 #if 1
-
-		
-		PRINTF("\r\nHumidity: %.2f \r\n", humidity );
-		return roundf(humidity);
-		
+    /* Print sensor data for debuging purposes */
+    floatToInt( humidity, &d1, &d2, 2 );
+//    sprintf( dataOut, "\r\nHUM[%d]: %d.%02d\r\n", (int)id, (int)d1, (int)d2 );
+//    HAL_UART_Transmit( &UartHandle, ( uint8_t * )dataOut, strlen( dataOut ), 5000 );
+    
+    PRINTF("Humidity: %d.%01d \r\n", (int)d1, (int)d2 );
+    
+    return humidity;
+    
 #endif
-		
+    
   }
 }
 
-static int Temperature_Sensor_Handler( void *handle )
+
+
+/**
+ * @brief  Handles the temperature data getting/sending
+ * @param  handle the device handle
+ * @retval None
+ */
+static float Temperature_Sensor_Handler( void *handle )
 {
 
   int32_t d1, d2;
@@ -353,12 +408,28 @@ static int Temperature_Sensor_Handler( void *handle )
     {
       temperature = 0.0f;
     }
+    
+    /* Perform post processing of sensor data */
+    
+    
+    
+    
+    
+    /* ************************************** */
+    
+    
+    
 #if 1
-		PRINTF("\rTemperature: %.2f\r\n", temperature );
-		
-		return roundf(temperature);
+    /* Print sensor data for debuging purposes */
+    floatToInt( temperature, &d1, &d2, 2 );
+//    sprintf( dataOut, "\r\nTEMP[%d]: %d.%02d\r\n", (int)id, (int)d1, (int)d2 );
+//    HAL_UART_Transmit( &UartHandle, ( uint8_t * )dataOut, strlen( dataOut ), 5000 );
+
+    PRINTF("Temperature: %d.%1d\r\n", (int)d1, (int)d2 );
+    
+    return temperature;
 #endif
-		
+    
   }
 }
 
@@ -372,9 +443,9 @@ static int Temperature_Sensor_Handler( void *handle )
  */
 static void initializeAllSensors( void )
 {
-	deinitializeAllSensors();
-	
-#ifdef USE_ACC_GYRO	
+  deinitializeAllSensors();
+  
+#ifdef USE_ACC_GYRO 
   BSP_ACCELERO_Init( LSM6DSL_X_0, &LSM6DSL_X_0_handle );
   BSP_GYRO_Init( LSM6DSL_G_0, &LSM6DSL_G_0_handle );
 #endif
@@ -383,9 +454,9 @@ static void initializeAllSensors( void )
   BSP_MAGNETO_Init( LSM303AGR_M_0, &LSM303AGR_M_0_handle );
 #endif
 #ifdef USE_ENVI_SENSORS
-	BSP_HUMIDITY_Init( HTS221_H_0, &HTS221_H_0_handle );
+  BSP_HUMIDITY_Init( HTS221_H_0, &HTS221_H_0_handle );
   BSP_TEMPERATURE_Init( HTS221_T_0, &HTS221_T_0_handle );
-//  BSP_TEMPERATURE_Init( LPS22HB_T_0, &LPS22HB_T_0_handle );	//optional
+//  BSP_TEMPERATURE_Init( LPS22HB_T_0, &LPS22HB_T_0_handle ); //optional
   BSP_PRESSURE_Init( LPS22HB_P_0, &LPS22HB_P_0_handle );
 #endif
 }
@@ -398,7 +469,7 @@ static void initializeAllSensors( void )
 static void deinitializeAllSensors( void )
 {
 
-#ifdef USE_ACC_GYRO	
+#ifdef USE_ACC_GYRO 
   BSP_ACCELERO_DeInit(&LSM6DSL_X_0_handle );
   BSP_GYRO_DeInit(&LSM6DSL_G_0_handle );
 #endif
@@ -409,7 +480,7 @@ static void deinitializeAllSensors( void )
 #ifdef USE_ENVI_SENSORS
   BSP_HUMIDITY_DeInit(&HTS221_H_0_handle );
   BSP_TEMPERATURE_DeInit(&HTS221_T_0_handle );
-//  BSP_TEMPERATURE_DeInit(&LPS22HB_T_0_handle );	//optional
+//  BSP_TEMPERATURE_DeInit(&LPS22HB_T_0_handle ); //optional
   BSP_PRESSURE_DeInit(&LPS22HB_P_0_handle );
 #endif
 }
@@ -422,7 +493,7 @@ static void deinitializeAllSensors( void )
 static void enableAllSensors( void )
 {
 
-#ifdef USE_ACC_GYRO	
+#ifdef USE_ACC_GYRO 
   BSP_ACCELERO_Sensor_Enable( LSM6DSL_X_0_handle );
   BSP_GYRO_Sensor_Enable( LSM6DSL_G_0_handle );
 #endif
@@ -436,8 +507,8 @@ static void enableAllSensors( void )
 //  BSP_TEMPERATURE_Sensor_Enable( LPS22HB_T_0_handle );
   BSP_PRESSURE_Sensor_Enable( LPS22HB_P_0_handle );
 #endif
-	
-	SdkDelayMs(10);
+  
+  SdkDelayMs(10);
 }
 
 
@@ -450,7 +521,7 @@ static void enableAllSensors( void )
 static void disableAllSensors( void )
 {
 
-#ifdef USE_ACC_GYRO		
+#ifdef USE_ACC_GYRO   
   BSP_ACCELERO_Sensor_Disable( LSM6DSL_X_0_handle );
   BSP_GYRO_Sensor_Disable( LSM6DSL_G_0_handle );
 #endif
@@ -461,7 +532,7 @@ static void disableAllSensors( void )
 #ifdef USE_ENVI_SENSORS
   BSP_HUMIDITY_Sensor_Disable( HTS221_H_0_handle );
   BSP_TEMPERATURE_Sensor_Disable( HTS221_T_0_handle );
-//  BSP_TEMPERATURE_Sensor_Disable( LPS22HB_T_0_handle );	//optional
+//  BSP_TEMPERATURE_Sensor_Disable( LPS22HB_T_0_handle ); //optional
   BSP_PRESSURE_Sensor_Disable( LPS22HB_P_0_handle );
 #endif
 }
